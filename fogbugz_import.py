@@ -6,13 +6,13 @@ import os
 
 from fogbugz import FogBugz
 
-S_FOGBUGZ_URL = '<your url here>'
+S_FOGBUGZ_URL = '<your fogbugz url here>'
 S_EMAIL = '<your user email here>'
 S_PASSWORD = '<your password here>'
 # fogbugz api access token so attachemnts can be retrieved by JIRA
-S_TOKEN = 'kufbbetf6j47eme0sedap87mrl3675'
+S_TOKEN = '<your api access token here>'
 # a hack to get around that I wanted to author to be a user in our project, user did not make his email public, this was the only way to associate the bugs
-S_USER ='557058:40ea6b91-0dd5-4f6d-b3fb-351471ae1ef5'
+S_USER = '557058:40ea6b91-0dd5-4f6d-b3fb-351471ae1ef5'
 MAX_BUGS = 9999
 # Set this to bug number if you want to export just 1 bug
 EXPORT_BUG = 0
@@ -44,7 +44,8 @@ def get_events(bug, issue, BACKUP_DIR):
         eventBody = get_attribute(fbevent, "s")
         newBodies = []
         if eventBody is not None:
-            eventBodyLength, bodyLengthSize = len(eventBody), 20000  # body comment message limit is 32KB, not counting whitespace, arbitraty number under this chosen
+            eventBodyLength, bodyLengthSize = len(
+                eventBody), 20000  # body comment message limit is 32KB, not counting whitespace, arbitraty number under this chosen
             newBodies = [eventBody[i:i + bodyLengthSize] for i in range(0, eventBodyLength, bodyLengthSize)]
             event['body'] = newBodies[0]
 
@@ -97,6 +98,21 @@ def get_events(bug, issue, BACKUP_DIR):
     return events
 
 
+def dump_json(batch, counter, components, issues):
+    print("Writing batch: " + str(counter))
+    print("Found components: " + ''.join(str(e) for e in components))
+
+    jira = {"projects": []}
+
+    # hardcoded the project information
+    project = {"name": "Support", "key": "SUP", "components": components, "issues": issues};
+
+    jira['projects'].append(project)
+
+    with open("jira_import_" + str(batch) + ".json", "w") as write_file:
+        json.dump(jira, write_file)
+
+
 def main():
     fb = FogBugz(S_FOGBUGZ_URL)
     fb.logon(S_EMAIL, S_PASSWORD)
@@ -114,7 +130,7 @@ def main():
     cases = resp.cases.findAll('case')
     num_cases = len(cases)
     counter = 0
-    batch = 0
+    batch = 1
     issues = []
 
     components = []
@@ -154,21 +170,12 @@ def main():
         issues.append(issue)
 
         if counter % BATCH_SIZE == 0:
-            print("Writing batch: " + str(counter))
-            print("Found components: " + ''.join(str(e) for e in components))
-
-            batch += 1
-            jira = {"projects": []}
-
-            # hardcoded the project information
-            project = {"name": "Support", "key": "SUP", "components": components, "issues": issues};
-
-            jira['projects'].append(project)
-
-            with open("jira_import_" + str(batch) + ".json", "w") as write_file:
-                json.dump(jira, write_file)
-
+            dump_json(batch, counter, components, issues)
             issues = []
+            batch += 1
+
+    # one last dump
+    dump_json(batch, counter, components, issues)
 
 
 main()
